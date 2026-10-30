@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Sociafeed</title>
 <meta name="theme-color" content="#1d5fd1">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sociafeed">
 <style>
 :root{--bg:#eef1f6;--card:#fff;--text:#1a1f2b;--muted:#64708a;--accent:#1d5fd1;--line:#dde3ee;--like:#e0245e;box-sizing:border-box}
 @media (prefers-color-scheme:dark){:root{--bg:#12151c;--card:#1c212b;--text:#e8ecf4;--muted:#9aa5bd;--accent:#5b9bff;--line:#2c3443;--like:#ff6b95}}
@@ -303,6 +309,8 @@ document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
   ["feed", "friends", "me"].forEach(k => $("t-" + k).hidden = b.dataset.t !== k);
   window.scrollTo(0, 0);
 });
+
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 </script>
 </body>
 </html>
