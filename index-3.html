@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sociafeed</title>
+<meta name="theme-color" content="#1d5fd1">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sociafeed">
+<style>
+:root{--bg:#eef1f6;--card:#fff;--text:#1a1f2b;--muted:#64708a;--accent:#1d5fd1;--line:#dde3ee;--like:#e0245e;box-sizing:border-box}
+@media (prefers-color-scheme:dark){:root{--bg:#12151c;--card:#1c212b;--text:#e8ecf4;--muted:#9aa5bd;--accent:#5b9bff;--line:#2c3443;--like:#ff6b95}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:calc(64px + env(safe-area-inset-bottom,0px))}
+.bar{position:sticky;top:0;z-index:5;background:var(--accent);color:#fff;font-size:22px;font-weight:800;padding:calc(12px + env(safe-area-inset-top,0px)) 16px 12px}
+.wrap{max-width:620px;margin:0 auto;padding:12px}
+.card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+textarea,input{width:100%;font:inherit;font-size:16px;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+textarea{resize:none;min-height:72px}
+button{font:inherit;border:0;border-radius:10px;padding:9px 14px;background:var(--accent);color:#fff;cursor:pointer}
+button.ghost{background:none;color:var(--muted)}
+button:disabled{opacity:.5}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:flex;gap:8px;align-items:center}
+.right{justify-content:flex-end;margin-top:8px}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none}
+img.avatar{object-fit:cover;background:var(--line)}
+.name{font-weight:700}.time{font-size:12px;color:var(--muted)}
+.text{margin:10px 0;white-space:pre-wrap;word-break:break-word}
+.actions{display:flex;border-top:1px solid var(--line);padding-top:6px;margin-top:6px}
+.actions button{flex:1;background:none;color:var(--muted)}
+.actions button.on{color:var(--like);font-weight:700}
+.cm{margin-top:8px;font-size:15px}.cm b{margin-right:6px}.cm .row{margin-top:8px}
+.tabs{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs button{flex:1;background:none;color:var(--muted);border-radius:0;padding:14px}
+.tabs button.on{color:var(--accent);font-weight:700}
+.auth{max-width:380px;margin:0 auto;padding:calc(40px + env(safe-area-inset-top,0px)) 16px 24px}
+.auth h1{color:var(--accent);font-size:36px;text-align:center;margin:0 0 4px}
+.auth p{text-align:center;color:var(--muted);margin:0 0 20px}
+.auth input,.auth button{margin-bottom:10px}
+.auth button{width:100%}
+.auth .ghost{border:1px solid var(--line)}
+.err{color:#d93025;font-size:14px;min-height:20px}
+.empty{text-align:center;color:var(--muted);padding:24px}
+.person{display:flex;align-items:center;gap:10px;padding:8px 0}.person .name{flex:1;word-break:break-word}.h{font-weight:700;margin-bottom:6px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
+.tile{position:relative;aspect-ratio:3/4;background:var(--card);overflow:hidden;border:0;padding:0;border-radius:0;color:var(--text)}
+.tile img{width:100%;height:100%;object-fit:cover;display:block}
+.tile .tt{padding:8px;font-size:13px;text-align:left;word-break:break-word}
+.tile .pl{position:absolute;left:6px;bottom:6px;color:#fff;font-size:13px;text-shadow:0 1px 3px #000}
+.media{width:100%;max-height:70vh;border-radius:10px;background:#000;display:block;margin:8px 0;object-fit:contain}
+.modal{position:fixed;inset:0;z-index:20;background:var(--bg);overflow:auto;padding:calc(8px + env(safe-area-inset-top,0px)) 12px calc(16px + env(safe-area-inset-bottom,0px))}
+.prof{text-align:center}.prof .avatar{width:72px;height:72px;font-size:28px;margin:0 auto 8px}.prof button{margin-top:8px}
+.notice{background:#fff4ce;color:#5a4500;border-radius:10px;padding:10px;margin-bottom:12px;font-size:14px}
+#toast{position:fixed;left:12px;right:12px;bottom:calc(76px + env(safe-area-inset-bottom,0px));background:#222;color:#fff;border-radius:10px;padding:10px 14px;z-index:30;text-align:center}
+</style>
+</head>
+<body>
+
+<section id="auth" class="auth" hidden>
+  <h1>Sociafeed</h1>
+  <p>Partage avec tes amis.</p>
+  <div id="cfg" class="notice" hidden>Colle d’abord la configuration de ton projet Firebase dans le fichier (cherche « firebaseConfig »).</div>
+  <input id="nm" placeholder="Ton nom" autocomplete="name" hidden>
+  <input id="em" type="email" placeholder="Email" autocomplete="email">
+  <input id="pw" type="password" placeholder="Mot de passe (6 caractères minimum)" autocomplete="current-password">
+  <div id="err" class="err"></div>
+  <button id="go">Se connecter</button>
+  <button id="gg" class="ghost">Continuer avec Google</button>
+  <button id="sw" class="ghost">Pas de compte ? Créer un compte</button>
+</section>
+
+<div id="main" hidden>
+  <header class="bar">Sociafeed</header>
+  <main class="wrap">
+    <section id="t-feed">
+      <div class="card">
+        <textarea id="txt" maxlength="2000" placeholder="Quoi de neuf ?"></textarea>
+        <input id="file" type="file" accept="image/*,video/*" hidden>
+        <div class="row" style="margin-top:8px"><button class="ghost" id="pick" style="border:1px solid var(--line)">📷 Photo ou vidéo</button><span id="fname" class="time" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span><button id="pub">Publier</button></div>
+      </div>
+      <div id="feed"></div>
+    </section>
+    <section id="t-friends" hidden>
+      <div class="card">
+        <input id="q" placeholder="Chercher une personne par son nom">
+        <div id="found"></div>
+      </div>
+      <div class="card" id="reqcard" hidden><div class="h">Demandes reçues</div><div id="reqs"></div></div>
+      <div class="card"><div class="h">Mes amis</div><div id="frs"></div></div>
+    </section>
+    <section id="t-me" hidden>
+      <div class="card">
+        <div class="row"><div id="av" data-a="chphoto" style="cursor:pointer;flex:none"></div><div><div class="name" id="myname"></div><div class="time" id="myem"></div></div></div>
+        <div class="row" style="margin-top:12px"><button class="ghost" data-a="chphoto" style="border:1px solid var(--line)">Changer ma photo</button><input id="pfile" type="file" accept="image/*" hidden></div>
+        <div class="row" style="margin-top:12px"><input id="newname" placeholder="Changer mon nom"><button id="savename">Enregistrer</button></div>
+        <div class="row right"><button id="out" class="ghost">Se déconnecter</button></div>
+      </div>
+      <div id="mine"></div>
+    </section>
+  </main>
+  <nav class="tabs"><button data-t="feed" class="on">Fil</button><button data-t="friends">Amis</button><button data-t="me">Profil</button></nav>
+</div>
+<div id="modal" class="modal" hidden></div>
+<div id="toast" hidden></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { getFirestore, collection, addDoc, doc, setDoc, deleteDoc, updateDoc, getDoc, getDocs, onSnapshot, query, where, orderBy, limit, startAt, endAt, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+// 1) Colle ici la configuration du projet Firebase « sociafeed »
+//    (Paramètres du projet > Vos applications > Application Web > Configuration)
+const firebaseConfig = {
+  apiKey: "AIzaSyBL0aPeHdMmNQep4-DPcPYN11yLkkc0vCY",
+  authDomain: "sociafeed.firebaseapp.com",
+  projectId: "sociafeed",
+  storageBucket: "sociafeed.firebasestorage.app",
+  messagingSenderId: "338320520160",
+  appId: "1:338320520160:web:b14a18a664bea26f89b185"
+};
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const configured = !firebaseConfig.apiKey.startsWith("COLLE");
+$("cfg").hidden = configured;
+
+let auth, db;
+if (configured) { const app = initializeApp(firebaseConfig); auth = getAuth(app); db = getFirestore(app); }
+let me = null, posts = [], open = new Set(), cm = {}, subs = {}, unsubFeed = null, signup = false, tt, fr = [], unsubFr = null, st, pool = {}, userPosts = {}, cur = null, unsubMine = null, file = null, avatars = {}, asked = {};
+const CLOUD = "mx625stm", PRESETS = ["Socialfeed", "socialfeed", "SocialFeed"];
+
+const nameOf = u => u.displayName || (u.email || "Anonyme").split("@")[0];
+const avOk = u => typeof u === "string" && u.startsWith(`https://res.cloudinary.com/${CLOUD}/`);
+const avHTML = (uid, name) => avOk(avatars[uid])
+  ? `<img class="avatar" src="${esc(avatars[uid])}" alt="">`
+  : `<div class="avatar">${esc((name || "?")[0].toUpperCase())}</div>`;
+function wantAvatars(uids) {
+  uids.filter(u => u && !(u in asked)).forEach(u => {
+    asked[u] = 1;
+    getDoc(doc(db, "users", u)).then(d => { avatars[u] = d.exists() ? (d.data().photo || "") : ""; render(); }).catch(() => {});
+  });
+}
+const other = f => f.members.find(x => x !== me.uid);
+const saveUser = () => setDoc(doc(db, "users", me.uid), { name: nameOf(me), nameLower: nameOf(me).toLowerCase(), ts: Date.now() }, { merge: true }).catch(() => {});
+const ago = t => {
+  const s = (Date.now() - t) / 1000;
+  if (s < 60) return "à l’instant";
+  if (s < 3600) return `il y a ${Math.floor(s / 60)} min`;
+  if (s < 86400) return `il y a ${Math.floor(s / 3600)} h`;
+  return new Date(t).toLocaleDateString("fr-FR");
+};
+const toast = m => { const t = $("toast"); t.textContent = m; t.hidden = false; clearTimeout(tt); tt = setTimeout(() => t.hidden = true, 3500); };
+const denied = e => toast(e.code === "permission-denied" ? "Accès refusé : publie d’abord les règles Firestore." : e.message);
+
+// ---------- Connexion ----------
+const errs = {
+  "auth/invalid-credential": "Email ou mot de passe incorrect.",
+  "auth/invalid-email": "Adresse email invalide.",
+  "auth/email-already-in-use": "Cet email est déjà utilisé.",
+  "auth/weak-password": "Mot de passe trop court (6 caractères minimum).",
+  "auth/unauthorized-domain": "Domaine non autorisé : ajoute-le dans Firebase > Authentication > Paramètres.",
+  "auth/network-request-failed": "Pas de connexion internet."
+};
+const showErr = e => { if (e.code !== "auth/popup-closed-by-user") $("err").textContent = errs[e.code] || e.message; };
+
+$("sw").onclick = () => {
+  signup = !signup;
+  $("nm").hidden = !signup;
+  $("go").textContent = signup ? "Créer mon compte" : "Se connecter";
+  $("sw").textContent = signup ? "J’ai déjà un compte" : "Pas de compte ? Créer un compte";
+  $("err").textContent = "";
+};
+$("go").onclick = async () => {
+  if (!configured) return;
+  $("err").textContent = "";
+  try {
+    const em = $("em").value.trim(), pw = $("pw").value;
+    if (signup) {
+      const nm = $("nm").value.trim();
+      if (!nm) { $("err").textContent = "Indique ton nom."; return; }
+      const c = await createUserWithEmailAndPassword(auth, em, pw);
+      await updateProfile(c.user, { displayName: nm });
+      me = auth.currentUser; await saveUser(); render();
+    } else await signInWithEmailAndPassword(auth, em, pw);
+  } catch (e) { showErr(e); }
+};
+$("gg").onclick = async () => { if (!configured) return; try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { showErr(e); } };
+$("out").onclick = () => signOut(auth);
+
+if (configured) onAuthStateChanged(auth, u => {
+  me = u;
+  $("auth").hidden = !!u; $("main").hidden = !u;
+  if (unsubFeed) { unsubFeed(); unsubFeed = null; }
+  if (unsubFr) { unsubFr(); unsubFr = null; }
+  if (unsubMine) { unsubMine(); unsubMine = null; }
+  Object.values(subs).forEach(f => f()); subs = {}; open.clear(); cm = {};
+  if (!u) { posts = []; fr = []; pool = {}; userPosts = {}; cur = null; $("modal").hidden = true; return; }
+  saveUser();
+  unsubFeed = onSnapshot(query(collection(db, "posts"), orderBy("ts", "desc"), limit(100)),
+    s => { posts = s.docs.map(d => pool[d.id] = { id: d.id, ...d.data() }); render(); }, denied);
+  unsubMine = onSnapshot(query(collection(db, "posts"), where("uid", "==", u.uid)),
+    s => { userPosts[u.uid] = s.docs.map(d => pool[d.id] = { id: d.id, ...d.data() }); render(); }, denied);
+  unsubFr = onSnapshot(query(collection(db, "friendships"), where("members", "array-contains", u.uid)),
+    s => { fr = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, denied);
+  render();
+});
+else $("auth").hidden = false;
+
+// ---------- Affichage ----------
+const thumb = p => !p.media ? "" : p.mtype === "video"
+  ? p.media.replace("/upload/", "/upload/so_0,w_400,h_533,c_fill,q_auto/").replace(/\.\w+$/, ".jpg")
+  : p.media.replace("/upload/", "/upload/w_400,h_533,c_fill,q_auto/");
+const mediaHTML = p => !p.media ? "" : p.mtype === "video"
+  ? `<video class="media" src="${esc(p.media)}" controls playsinline preload="metadata"></video>`
+  : `<img class="media" src="${esc(p.media.replace("/upload/", "/upload/q_auto,w_900/"))}" loading="lazy" alt="">`;
+const tile = p => `<button class="tile" data-a="open" data-id="${p.id}">${thumb(p) ? `<img src="${esc(thumb(p))}" loading="lazy" alt="">` : `<div class="tt">${esc((p.text || "").slice(0, 90))}</div>`}${p.mtype === "video" ? `<span class="pl">▶</span>` : ""}</button>`;
+const gridHTML = list => list.length ? `<div class="grid">${list.slice().sort((a, b) => b.ts - a.ts).map(tile).join("")}</div>` : `<div class="empty">Aucune publication.</div>`;
+
+function profileHTML(uid, name) {
+  const list = userPosts[uid] || [];
+  const rel = new Set(fr.map(other));
+  const btn = uid === me.uid ? `<button class="ghost" data-a="chphoto">Changer ma photo</button>` : rel.has(uid) ? `<div class="time">Déjà en contact</div>` : `<button data-a="add" data-u="${uid}" data-n="${esc(name)}">Ajouter en ami</button>`;
+  return `<div class="card prof">${avHTML(uid, name)}<div class="name">${esc(name)}</div><div class="time">${list.length} publication${list.length > 1 ? "s" : ""}</div>${btn}</div>${gridHTML(list)}`;
+}
+
+function paintModal() {
+  const m = $("modal");
+  if (!cur) { m.hidden = true; m.innerHTML = ""; return; }
+  const sc = m.scrollTop;
+  m.hidden = false;
+  m.innerHTML = `<button class="ghost" data-a="back">← Retour</button>` + (cur.t === "post"
+    ? (pool[cur.id] ? postHTML(pool[cur.id]) : `<div class="empty">Publication introuvable.</div>`)
+    : profileHTML(cur.uid, cur.name));
+  m.scrollTop = sc;
+}
+
+function postHTML(p) {
+  const likes = p.likes || [], liked = likes.includes(me.uid);
+  const comments = open.has(p.id)
+    ? `<div class="cm">${(cm[p.id] || []).map(c => `<div><b>${esc(c.name)}</b>${esc(c.text)}</div>`).join("")}<div class="row"><input data-ci="${p.id}" maxlength="1000" placeholder="Écrire un commentaire…"><button data-a="send" data-id="${p.id}">Envoyer</button></div></div>`
+    : "";
+  return `<article class="card"><div class="row"><div class="row" style="flex:1;cursor:pointer" data-a="prof" data-u="${p.uid}" data-n="${esc(p.name)}">${avHTML(p.uid, p.name)}<div><div class="name">${esc(p.name)}</div><div class="time">${ago(p.ts)}</div></div></div>${p.uid === me.uid ? `<button class="ghost" data-a="del" data-id="${p.id}">Supprimer</button>` : ""}</div>${p.text ? `<div class="text">${esc(p.text)}</div>` : ""}${mediaHTML(p)}<div class="time">${likes.length ? "♥ " + likes.length : ""}</div><div class="actions"><button data-a="like" data-id="${p.id}" class="${liked ? "on" : ""}">${liked ? "♥" : "♡"} J’aime</button><button data-a="cm" data-id="${p.id}">Commenter</button></div>${comments}</article>`;
+}
+
+function renderFriends() {
+  const acc = fr.filter(f => f.status === "accepted");
+  const req = fr.filter(f => f.status === "pending" && f.requester !== me.uid);
+  const sent = fr.filter(f => f.status === "pending" && f.requester === me.uid);
+  const nm = f => (f.names || {})[other(f)] || "Utilisateur";
+  const row = (f, btns) => `<div class="person" data-a="prof" data-u="${other(f)}" data-n="${esc(nm(f))}" style="cursor:pointer">${avHTML(other(f), nm(f))}<div class="name">${esc(nm(f))}</div>${btns}</div>`;
+  $("reqcard").hidden = !req.length;
+  $("reqs").innerHTML = req.map(f => row(f, `<button data-a="acc" data-id="${f.id}">Accepter</button><button class="ghost" data-a="rm" data-id="${f.id}">Refuser</button>`)).join("");
+  $("frs").innerHTML = acc.length || sent.length
+    ? acc.map(f => row(f, `<button class="ghost" data-a="rm" data-id="${f.id}">Retirer</button>`)).join("")
+      + sent.map(f => row(f, `<span class="time">Demande envoyée</span><button class="ghost" data-a="rm" data-id="${f.id}">Annuler</button>`)).join("")
+    : `<div class="empty">Pas encore d’amis. Cherche quelqu’un ci-dessus.</div>`;
+}
+
+function render() {
+  if (!me) return;
+  wantAvatars([me.uid, ...posts.map(p => p.uid), ...fr.map(other), ...Object.keys(userPosts)]);
+  const keep = {};
+  document.querySelectorAll("[data-ci]").forEach(i => keep[i.dataset.ci] = i.value);
+  const f = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.ci : null;
+
+  const ok = new Set([me.uid, ...fr.filter(f => f.status === "accepted").map(other)]);
+  const feed = posts.filter(p => ok.has(p.uid));
+  $("feed").innerHTML = feed.length ? feed.map(postHTML).join("") : `<div class="empty">Rien à afficher. Publie quelque chose ou ajoute des amis dans l’onglet Amis.</div>`;
+  renderFriends();
+  $("mine").innerHTML = gridHTML(userPosts[me.uid] || []);
+  paintModal();
+  $("av").innerHTML = avHTML(me.uid, nameOf(me));
+  $("myname").textContent = nameOf(me);
+  $("myem").textContent = me.email || "";
+
+  const inputs = [...document.querySelectorAll("[data-ci]")];
+  inputs.forEach(i => { if (keep[i.dataset.ci] != null) i.value = keep[i.dataset.ci]; });
+  const el = f && inputs.slice().reverse().find(i => i.dataset.ci === f && i.offsetParent);
+  if (el) el.focus();
+}
+
+// ---------- Actions ----------
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-a]");
+  if (!b || !me) return;
+  const id = b.dataset.id, p = pool[id];
+  try {
+    if (b.dataset.a === "like" && p) {
+      const had = (p.likes || []).includes(me.uid);
+      p.likes = had ? p.likes.filter(x => x !== me.uid) : [...(p.likes || []), me.uid];
+      render();
+      await updateDoc(doc(db, "posts", id), { likes: had ? arrayRemove(me.uid) : arrayUnion(me.uid) });
+    } else if (b.dataset.a === "del") {
+      if (confirm("Supprimer cette publication ?")) {
+        await deleteDoc(doc(db, "posts", id));
+        if (cur && cur.t === "post" && cur.id === id) history.back();
+      }
+    } else if (b.dataset.a === "open") {
+      history.pushState({}, ""); cur = { t: "post", id, prev: cur }; render();
+    } else if (b.dataset.a === "prof") {
+      const uid = b.dataset.u;
+      if (uid !== me.uid && !userPosts[uid]) {
+        const sn = await getDocs(query(collection(db, "posts"), where("uid", "==", uid)));
+        userPosts[uid] = sn.docs.map(d => pool[d.id] = { id: d.id, ...d.data() });
+      }
+      history.pushState({}, ""); cur = { t: "user", uid, name: b.dataset.n, prev: cur }; render();
+    } else if (b.dataset.a === "chphoto") {
+      $("pfile").click();
+    } else if (b.dataset.a === "back") {
+      history.back();
+    } else if (b.dataset.a === "cm") {
+      if (open.has(id)) { open.delete(id); if (subs[id]) subs[id](); delete subs[id]; }
+      else {
+        open.add(id);
+        subs[id] = onSnapshot(query(collection(db, "posts", id, "comments"), orderBy("ts")), s => { cm[id] = s.docs.map(d => d.data()); render(); }, denied);
+      }
+      render();
+    } else if (b.dataset.a === "add") {
+      const u = b.dataset.u, ids = [me.uid, u].sort();
+      await setDoc(doc(db, "friendships", ids.join("_")), { members: ids, requester: me.uid, status: "pending", names: { [me.uid]: nameOf(me), [u]: b.dataset.n }, ts: Date.now() });
+      toast("Demande envoyée.");
+      b.outerHTML = `<span class="time">Demande envoyée</span>`;
+    } else if (b.dataset.a === "acc") {
+      await updateDoc(doc(db, "friendships", id), { status: "accepted" });
+    } else if (b.dataset.a === "rm") {
+      if (confirm("Confirmer ?")) await deleteDoc(doc(db, "friendships", id));
+    } else if (b.dataset.a === "send") {
+      const i = b.closest(".cm").querySelector("input"), t = i.value.trim();
+      if (!t) return;
+      i.value = "";
+      await addDoc(collection(db, "posts", id, "comments"), { uid: me.uid, name: nameOf(me), text: t, ts: Date.now() });
+    }
+  } catch (x) { denied(x); }
+});
+
+window.addEventListener("popstate", () => { cur = cur ? cur.prev || null : null; render(); });
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter" && e.target.dataset && e.target.dataset.ci) e.target.closest(".cm").querySelector("button").click();
+});
+
+$("pfile").onchange = async () => {
+  const f = $("pfile").files[0]; $("pfile").value = "";
+  if (!f || !me) return;
+  if (!f.type.startsWith("image/")) { toast("Choisis une photo."); return; }
+  if (f.size > 15 * 1048576) { toast("Photo trop lourde (15 Mo maximum)."); return; }
+  toast("Envoi de la photo…");
+  try {
+    const r = await upload(f);
+    const url = r.media.replace("/upload/", "/upload/w_240,h_240,c_fill,g_face,q_auto,f_auto/");
+    await setDoc(doc(db, "users", me.uid), { photo: url }, { merge: true });
+    avatars[me.uid] = url; render(); toast("Photo de profil mise à jour.");
+  } catch (e) { toast(e.message); }
+};
+
+$("pick").onclick = () => $("file").click();
+$("file").onchange = () => {
+  const f = $("file").files[0];
+  if (!f) return;
+  if (f.size > 80 * 1024 * 1024) { toast("Fichier trop lourd (80 Mo maximum)."); $("file").value = ""; return; }
+  file = f; $("fname").textContent = f.name;
+};
+
+async function upload(f) {
+  let last = "Échec de l’envoi.";
+  for (const pr of PRESETS) {
+    const fd = new FormData();
+    fd.append("file", f); fd.append("upload_preset", pr);
+    const r = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD}/auto/upload`, { method: "POST", body: fd });
+    const j = await r.json();
+    if (r.ok && j.secure_url) return { media: j.secure_url, mtype: j.resource_type === "video" ? "video" : "image" };
+    last = (j.error && j.error.message) || last;
+    if (!/preset/i.test(last)) break;
+  }
+  throw new Error(last);
+}
+
+$("pub").onclick = async () => {
+  const t = $("txt").value.trim();
+  if ((!t && !file) || !me) return;
+  $("pub").disabled = true; $("pub").textContent = file ? "Envoi…" : "Publier";
+  try {
+    const m = file ? await upload(file) : {};
+    await addDoc(collection(db, "posts"), { uid: me.uid, name: nameOf(me), text: t, ts: Date.now(), likes: [], ...m });
+    $("txt").value = ""; file = null; $("file").value = ""; $("fname").textContent = "";
+  } catch (e) { denied(e); }
+  $("pub").disabled = false; $("pub").textContent = "Publier";
+};
+
+$("savename").onclick = async () => {
+  const n = $("newname").value.trim();
+  if (!n || !me) return;
+  try { await updateProfile(auth.currentUser, { displayName: n }); me = auth.currentUser; await saveUser(); $("newname").value = ""; render(); toast("Nom enregistré."); }
+  catch (e) { toast(e.message); }
+};
+
+$("q").oninput = () => {
+  clearTimeout(st);
+  st = setTimeout(async () => {
+    const t = $("q").value.trim().toLowerCase();
+    if (t.length < 2 || !me) { $("found").innerHTML = ""; return; }
+    try {
+      const s = await getDocs(query(collection(db, "users"), orderBy("nameLower"), startAt(t), endAt(t + "\uf8ff"), limit(10)));
+      const rel = new Set(fr.map(other));
+      s.docs.forEach(d => { avatars[d.id] = d.data().photo || ""; asked[d.id] = 1; });
+      const list = s.docs.map(d => ({ uid: d.id, ...d.data() })).filter(u => u.uid !== me.uid);
+      $("found").innerHTML = list.length
+        ? list.map(u => `<div class="person" data-a="prof" data-u="${u.uid}" data-n="${esc(u.name)}" style="cursor:pointer">${avHTML(u.uid, u.name)}<div class="name">${esc(u.name)}</div>${rel.has(u.uid) ? `<span class="time">Déjà en contact</span>` : `<button data-a="add" data-u="${u.uid}" data-n="${esc(u.name)}">Ajouter</button>`}</div>`).join("")
+        : `<div class="empty">Aucun résultat.</div>`;
+    } catch (e) { denied(e); }
+  }, 300);
+};
+
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x === b));
+  ["feed", "friends", "me"].forEach(k => $("t-" + k).hidden = b.dataset.t !== k);
+  window.scrollTo(0, 0);
+});
+
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>
