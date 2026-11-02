@@ -15,3 +15,7 @@ self.addEventListener("fetch", e => {
       .catch(() => caches.match(r).then(m => m || caches.match("./index.html")))
   );
 });
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  e.waitUntil(clients.matchAll({ type: "window", includeUncontrolled: true }).then(l => l.length ? l[0].focus() : clients.openWindow("./")));
+});
